@@ -136,7 +136,18 @@ class RSSM(nn.Module):
         prior = {key: [s[key] for s in prior] for key in prior[0].keys()}
         prior = {key: torch.stack(s, dim=0).transpose(0, 1) for key, s in prior.items()}
         return prior
-    
+
+class ImgChLayerNorm(nn.Module):
+    def __init__(self, ch, eps=1e-03):
+        super(ImgChLayerNorm, self).__init__()
+        self.norm = torch.nn.LayerNorm(ch, eps=eps)
+
+    def forward(self, x):
+        x = x.permute(0, 2, 3, 1)
+        x = self.norm(x)
+        x = x.permute(0, 3, 1, 2)
+        return x
+        
 class ConvEncoder(nn.Module):
     def __init__(self):
         super().__init__()
@@ -149,7 +160,7 @@ class ConvEncoder(nn.Module):
             layers.append(
                 nn.Conv2d(in_channels, out_channels, kernel_size=5, stride=2, padding=2)
             )
-            layers.append(nn.BatchNorm2d(out_channels))
+            layers.append(ImgChLayerNorm(out_channels))
             layers.append(nn.SiLU())
             in_channels = out_channels
             out_channels *= 2
@@ -163,7 +174,7 @@ class ConvEncoder(nn.Module):
         x = self.conv(x)
         x = x.reshape(b, t, -1) # (B, T, features)
         return x
-    
+
 class ConvDecoder(nn.Module):
     def __init__(self, feat_size):
         super().__init__()
@@ -175,7 +186,7 @@ class ConvDecoder(nn.Module):
             layers.append(
                 nn.ConvTranspose2d(in_channels, out_channels, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False)
             )
-            layers.append(nn.BatchNorm2d(out_channels))
+            layers.append(ImgChLayerNorm(out_channels))
             layers.append(nn.SiLU())
             in_channels = out_channels
             out_channels = max(out_channels // 2, 32)
@@ -249,7 +260,7 @@ class MultiDecoder(nn.Module):
     
     def make_image_dists(self, image_mean) -> dict[str, D.Distribution]:
         dist = D.independent.Independent(
-            D.Normal(image_mean, 1.0), 3
+            D.Normal(image_mean, 0.1), 3
         )
         return {'image': dist}
     

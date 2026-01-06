@@ -72,6 +72,8 @@ class WorldModel(nn.Module):
             reconstruction_loss += -pred[key].log_prob(obs[key]).mean()
         reward_loss = -self.reward(feat[:, 1:]).log_prob(rewards[:, :-1]).mean()
         continue_loss = -self.continuation(feat[:, 1:]).log_prob(continues[:, :-1]).mean()
+        #print("kl_loss:", kl_loss.item(), "reconstruction_loss:", reconstruction_loss.item(),
+        #      "reward_loss:", reward_loss.item(), "continue_loss:", continue_loss.item())
         loss = reconstruction_loss + kl_loss + reward_loss + continue_loss
         return loss, post
     
